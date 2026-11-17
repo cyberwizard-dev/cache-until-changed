@@ -30,6 +30,12 @@ return [
     */
     'grace_seconds' => 1,
 
+    /*
+    | Seconds a fingerprint is reused before it is queried again. 0 queries
+    | it on every read. Override per result with checkEvery().
+    */
+    'check_every' => 0,
+
     'prefix' => 'cache-until-changed',
 
 ];

@@ -72,6 +72,7 @@ combination is cached separately.
 | `connection('mysql')` | Database connection for the fingerprint query. |
 | `grace(1)` | Writes this recent bypass the cache (see below). |
 | `withoutOverlapping(10)` | One request computes a missing result while concurrent ones wait, instead of all computing it. Needs a store with locks. |
+| `checkEvery(5)` | Reuse a fingerprint for this many seconds instead of querying it on every read. A change can take up to this long to show. Use it for results read many times a second. |
 | `fingerprint()` | The `Fingerprint` (hash, per-table figures, latest change), for ETags or your own checks. |
 
 ### The same-second write
@@ -106,6 +107,11 @@ pass the builder's inputs (scope, key parts) at the call site.
 One `UNION ALL` query, one aggregate per watched table, using your indexes on
 the scope column. Index `(scope_column, updated_at)` on large tables to keep it
 cheap.
+
+On a large table, `COUNT(*)` still visits every row in the scope, so the
+fingerprint grows with history (about 24 ms for 33,000 rows on MySQL). For
+results that are polled, add `checkEvery(5)`: the fingerprint is then queried
+at most once every 5 seconds per scope, however many requests arrive.
 
 Old entries are never read again once their fingerprint changes, and expire
 after the TTL.

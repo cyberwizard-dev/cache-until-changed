@@ -40,6 +40,7 @@ final class PendingCache
         private readonly ?string $connection = null,
         private readonly ?int $graceSeconds = null,
         private readonly ?int $lockSeconds = null,
+        private readonly ?int $checkEverySeconds = null,
     ) {}
 
     /**
@@ -119,12 +120,40 @@ final class PendingCache
         return $this->with(lockSeconds: max(1, $seconds));
     }
 
+    /**
+     * Reuses a fingerprint for this many seconds instead of querying it on
+     * every read, for results read many times a second. A change can then
+     * take up to this long to show.
+     */
+    public function checkEvery(int $seconds): self
+    {
+        return $this->with(checkEverySeconds: max(0, $seconds));
+    }
+
     public function fingerprint(): Fingerprint
     {
         if ($this->sources === []) {
             throw new LogicException('Watch at least one table before reading a fingerprint.');
         }
 
+        $seconds = $this->checkEverySeconds ?? (int) $this->config('check_every', 0);
+
+        if ($seconds <= 0) {
+            return Fingerprint::fromRows($this->fingerprintRows());
+        }
+
+        return Fingerprint::fromRows($this->cache()->remember(
+            $this->fingerprintKey(),
+            $seconds,
+            fn (): array => $this->fingerprintRows(),
+        ));
+    }
+
+    /**
+     * @return list<array{n: mixed, m: mixed}>
+     */
+    private function fingerprintRows(): array
+    {
         $db = $this->db();
         $union = null;
         $index = 0;
@@ -145,13 +174,27 @@ final class PendingCache
             $index++;
         }
 
-        $rows = collect($union->get())
+        return collect($union->get())
             ->sortBy(fn (object $row): int => (int) $row->s)
             ->map(fn (object $row): array => ['n' => $row->n, 'm' => $row->m])
             ->values()
             ->all();
+    }
 
-        return Fingerprint::fromRows($rows);
+    /**
+     * Query sources are identified by table name, so the result's name is
+     * part of the key: two results watching the same table through different
+     * queries never share a fingerprint.
+     */
+    private function fingerprintKey(): string
+    {
+        $sources = array_map(fn (array $source): array => [$source['column'], $source['query'] !== null], $this->sources);
+
+        return implode(':', [
+            $this->config('prefix', 'cache-until-changed'),
+            'fingerprint',
+            md5(serialize([$this->key[0] ?? null, $this->connection ?? $this->config('connection'), $this->scope, $sources])),
+        ]);
     }
 
     /**

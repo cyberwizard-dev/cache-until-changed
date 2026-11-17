@@ -181,6 +181,33 @@ class RememberTest extends TestCase
         $this->assertSame(1, $this->calls);
     }
 
+    public function test_check_every_reuses_the_fingerprint_for_that_long(): void
+    {
+        $pending = $this->cached()->checkEvery(10);
+        $this->read($pending);
+
+        DB::enableQueryLog();
+        $this->read($pending);
+        $this->assertSame([], DB::getQueryLog(), 'neither the fingerprint nor the result was queried');
+
+        $this->visit(1);
+        $this->travel(5)->seconds();
+        $this->assertSame(1, $this->read($pending), 'a change inside the window waits');
+
+        $this->travel(6)->seconds();
+        $this->assertSame(2, $this->read($pending));
+        $this->assertSame(2, $this->calls);
+    }
+
+    public function test_results_watching_one_table_through_different_queries_keep_their_own_fingerprint(): void
+    {
+        $recent = CacheUntilChanged::watchQuery('visits', fn ($q) => $q->where('team_id', 1))->checkEvery(60);
+        $other = CacheUntilChanged::watchQuery('visits', fn ($q) => $q->where('team_id', 2))->checkEvery(60);
+
+        $this->assertSame(1, $recent->key('one')->fingerprint()->tables[0]['n']);
+        $this->assertSame(0, $other->key('two')->fingerprint()->tables[0]['n']);
+    }
+
     public function test_it_needs_a_key_and_a_table(): void
     {
         $this->expectException(LogicException::class);
