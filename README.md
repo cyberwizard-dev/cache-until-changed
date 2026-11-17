@@ -97,8 +97,9 @@ requests:
   the result is read, never captured at boot. Each request uses its own
   sandbox's instances, including config changes made during that request.
 
-Avoid keeping per-request values (such as a computed cache key) on
-controllers, which Octane reuses across requests.
+Octane already discards controller instances after each request, so the
+risk is in singletons and statics: keep per-request values out of them, and
+pass the builder's inputs (scope, key parts) at the call site.
 
 ## How much it costs
 
