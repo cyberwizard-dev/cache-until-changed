@@ -1,0 +1,45 @@
+{
+    "name": "cyberwizard/cache-until-changed",
+    "description": "Cache expensive Laravel results until the rows behind them change, using a cheap per-table fingerprint. Octane safe.",
+    "keywords": ["laravel", "cache", "invalidation", "fingerprint", "octane"],
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "php": "^8.2",
+        "illuminate/cache": "^11.0|^12.0|^13.0",
+        "illuminate/database": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "phpunit/phpunit": "^10.5|^11.0|^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Cyberwizard\\CacheUntilChanged\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cyberwizard\\CacheUntilChanged\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cyberwizard\\CacheUntilChanged\\CacheUntilChangedServiceProvider"
+            ],
+            "aliases": {
+                "CacheUntilChanged": "Cyberwizard\\CacheUntilChanged\\Facades\\CacheUntilChanged"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "phpunit"
+    }
+}
